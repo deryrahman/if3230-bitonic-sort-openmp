@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h>
+#include <string.h>
 
 void print(int*, int);
 void exchange(int*, int, int);
@@ -10,15 +11,18 @@ void impBitonicSort(int*, int, int);
 int getPowTwo(int);
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    printf("Usage: %s n p\n  where n is problem size (power of two), p number of thread\n", argv[0]);
+  if (argc < 2) {
+    printf("Usage: %s n p\n  where n is problem size (power of two), p number of thread (optional)\n", argv[0]);
     exit(1);
   }
 
   int N = atoi(argv[1]);
   int thread = atoi(argv[2]);
+  int flag = thread<=0;
+
   int dummyN = getPowTwo(N);
   int *arr = (int*) malloc(dummyN*sizeof(int));
+  struct timeval st, et;
 
   if(!arr){
     printf("Unable to allocate memory\n");
@@ -29,12 +33,31 @@ int main(int argc, char **argv) {
   rng(arr,N,&maxX);
   buildDummy(arr,N,dummyN,maxX);
   // print(arr,N);
-  clock_t begin = clock();
-  impBitonicSort(arr,dummyN,thread);
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time : %lf\n", time_spent);
+  if(flag){
+    int* tmp;
+    for(int t=1; t<=256; t<<=1){
+      tmp = (int*)malloc(dummyN*sizeof(int));
+      memcpy(tmp,arr,dummyN*sizeof(int));
+      printf("With thread %d\n", t);
+      gettimeofday(&st,NULL);
+      impBitonicSort(tmp,dummyN,t);
+      gettimeofday(&et,NULL);
 
+      int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
+      printf("Execution time: %d ms\n",elapsed);
+      free(tmp);
+    }
+  } else {
+    gettimeofday(&st,NULL);
+    impBitonicSort(arr,dummyN,thread);
+    gettimeofday(&et,NULL);
+
+    int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
+    printf("Execution time: %d ms\n",elapsed);
+  }
+
+  free(arr);
+  // print(arr,N);
   return 0;
 }
 
@@ -59,17 +82,13 @@ void print(int* a, int N) {
   for (i = 0; i < N; i++) {
     printf("%d\n", a[i]);
   }
-  printf("\n");
 }
 
 void exchange(int* a, int i, int j) {
-  a[i]=a[i]^a[j];
-  a[j]=a[i]^a[j];
-  a[i]=a[j]^a[i];
-  // int t;
-  // t = a[i];
-  // a[i] = a[j];
-  // a[j] = t;
+  int t;
+  t = a[i];
+  a[i] = a[j];
+  a[j] = t;
 }
 
 void impBitonicSort(int* a, int N, int thread) {
@@ -78,7 +97,7 @@ void impBitonicSort(int* a, int N, int thread) {
 
   for (k=2; k<=N; k=2*k) {
     for (j=k>>1; j>0; j=j>>1) {
-      #pragma omp parallel for num_threads(thread)
+      #pragma omp parallel for num_threads(thread) schedule(static,(N/(2*thread)==0?1:N/(2*thread))) shared(j) private(i)
       for (i=0; i<N; i++) {
         int ij=i^j;
         if ((ij)>i) {
