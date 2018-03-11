@@ -1,60 +1,98 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
-void swap(int* a, int* b){
-  *a=*a^*b;
-  *b=*a^*b;
-  *a=*b^*a;
+void print(int*, int);
+void exchange(int*, int, int);
+void rng(int*, int, int*);
+void buildDummy(int*,int,int,int);
+void impBitonicSort(int*, int, int);
+int getPowTwo(int);
+
+int main(int argc, char **argv) {
+  if (argc < 3) {
+    printf("Usage: %s n p\n  where n is problem size (power of two), p number of thread\n", argv[0]);
+    exit(1);
+  }
+
+  int N = atoi(argv[1]);
+  int thread = atoi(argv[2]);
+  int dummyN = getPowTwo(N);
+  int *arr = (int*) malloc(dummyN*sizeof(int));
+
+  if(!arr){
+    printf("Unable to allocate memory\n");
+    exit(1);
+  }
+
+  int maxX;
+  rng(arr,N,&maxX);
+  buildDummy(arr,N,dummyN,maxX);
+  // print(arr,N);
+  clock_t begin = clock();
+  impBitonicSort(arr,dummyN,thread);
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("Time : %lf\n", time_spent);
+
+  return 0;
 }
 
-void bitSwap(int* a, int* b, int dir){
-  if(*a>*b == dir){
-    swap(a,b);
+
+void rng(int* arr, int n, int* maxX) {
+    int seed = 13515097;
+    srand(seed);
+    for(long i = 0; i < n; i++) {
+        arr[i] = (int)rand();
+        *maxX = ((i==0 || *maxX<arr[i])?arr[i]:*maxX);
+    }
+}
+
+void buildDummy(int* arr,int N,int dummyN, int maxX){
+  for(long i = N; i < dummyN; i++) {
+    arr[i]=maxX;
   }
 }
+
+void print(int* a, int N) {
+  int i;
+  for (i = 0; i < N; i++) {
+    printf("%d\n", a[i]);
+  }
+  printf("\n");
+}
+
+void exchange(int* a, int i, int j) {
+  a[i]=a[i]^a[j];
+  a[j]=a[i]^a[j];
+  a[i]=a[j]^a[i];
+  // int t;
+  // t = a[i];
+  // a[i] = a[j];
+  // a[j] = t;
+}
+
+void impBitonicSort(int* a, int N, int thread) {
+
+  int i,j,k;
+
+  for (k=2; k<=N; k=2*k) {
+    for (j=k>>1; j>0; j=j>>1) {
+      #pragma omp parallel for num_threads(thread)
+      for (i=0; i<N; i++) {
+        int ij=i^j;
+        if ((ij)>i) {
+          if ((i&k)==0 && a[i] > a[ij]) exchange(a,i,ij);
+          if ((i&k)!=0 && a[i] < a[ij]) exchange(a,i,ij);
+        }
+      }
+    }
+  }
+}
+
 
 int getPowTwo(int n){
   int d=1;
   while (d>0 && d<n) d<<=1;
-  return d>>1;
-}
-
-void bitMerge(int* arr, int lo, int n, int dir){
-  if(n>1){
-    int m = getPowTwo(n);
-    for(int i=lo; i<lo+n-m; i++){
-      bitSwap(arr+i, arr+(i+m), dir);
-    }
-    bitMerge(arr, lo, m, dir);
-    bitMerge(arr, lo+m, n-m, dir);
-  }
-}
-
-void bitSort(int* arr, int lo, int n, int dir){
-  if(n>1){
-    int m = n/2;
-    bitSort(arr, lo, m, !dir);
-    bitSort(arr, lo+m, n-m, dir);
-    bitMerge(arr, lo, n, dir);
-  }
-}
-
-void rng(int* arr, int n) {
-    int seed = 13515097; // Ganti dengan NIM anda sebagai seed.
-    srand(seed);
-    for(long i = 0; i < n; i++) {
-        arr[i] = (int)rand();
-    }
-}
-
-int main(int argc, char const *argv[]) {
-  int N = atoi(argv[1]);
-  int arr[N];
-  rng(arr,N);
-  bitSort(arr,0,N,1);
-
-  for(int i=0; i<N; i++){
-    printf("%d\n", arr[i]);
-  }
-  return 0;
+  return d;
 }
