@@ -17,7 +17,10 @@ int main(int argc, char **argv) {
   }
 
   int N = atoi(argv[1]);
-  int thread = atoi(argv[2]);
+  int thread = 2;
+  if (argc == 3){
+    thread = atoi(argv[2]);
+  }
   int flag = thread<=0;
 
   int dummyN = getPowTwo(N);
@@ -32,7 +35,6 @@ int main(int argc, char **argv) {
   int maxX;
   rng(arr,N,&maxX);
   buildDummy(arr,N,dummyN,maxX);
-  // print(arr,N);
   if(flag){
     int* tmp;
     for(int t=1; t<=256; t<<=1){
@@ -44,7 +46,7 @@ int main(int argc, char **argv) {
       gettimeofday(&et,NULL);
 
       int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
-      printf("Execution time: %d ms\n",elapsed);
+      printf("Execution time: %d micro sec\n",elapsed);
       free(tmp);
     }
   } else {
@@ -53,11 +55,11 @@ int main(int argc, char **argv) {
     gettimeofday(&et,NULL);
 
     int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
-    printf("Execution time: %d ms\n",elapsed);
+    printf("Execution time: %d micro sec\n",elapsed);
   }
 
+  print(arr,N);
   free(arr);
-  // print(arr,N);
   return 0;
 }
 
@@ -97,7 +99,7 @@ void impBitonicSort(int* a, int N, int thread) {
 
   for (k=2; k<=N; k=2*k) {
     for (j=k>>1; j>0; j=j>>1) {
-      #pragma omp parallel for num_threads(thread) schedule(static,(N/(2*thread)==0?1:N/(2*thread))) shared(j) private(i)
+      #pragma omp parallel for num_threads(thread) private(i)
       for (i=0; i<N; i++) {
         int ij=i^j;
         if ((ij)>i) {
