@@ -31,14 +31,10 @@ Untuk mendapatkan sequence bitonic, dapat dilakukan dengan cara membandingkan 2 
 <div style="text-align:center"><img src ="docs/bitonic.png" /></div>
 <p style="text-align: center;">Ilustrasi 1.1</p>
 
-Pertama, membuat ``bitonic increasing`` pada masing-masing subsequence yg berjumlah 4 buah. Kemudian 8 buah, 16 buah, hingga 2*n buah (n merupakan panjang sequence).
-
-Terdapat ``N=log2(n)`` kali iterasi ``(k=1,2..N)`` untuk membuat ``bitonic increasing`` subsequence. Pada iterasi ke-k, terdapat ``k`` kali iterasi yang akan melakukan proses pembuatan ``bitonic increasing`` subsequence. Pada contoh ilustrasi, terdapat ``n=32``, sehingga terdapat 5 iterasi, dengan iterasi ``k`` ke-1, terdapat 1 iterasi ``(A)``, ke-2, 2 iterasi ``(B,C)``, ke-3, 3 iterasi ``(D,E,F)``, ke-4, 4 iterasi ``(G,H,I,J)``, dan yang ke-5, 5 iterasi ``(K,L,M,N,O)``. Masing-masing (A,B,C,D...O), terdapat ``n/2`` buah perbandingan yang dapat diparalelkan.
-
-Pada ilustrasi, tahaps A,B,C,...O dapat dilakukan secara paralel, karena data tidak saling bergantung ketika dilakukan operasi perbandingan.
+Pada ilustrasi, tahap A,B,C,...O dapat dilakukan secara paralel, karena data tidak saling bergantung ketika dilakukan operasi perbandingan.
 
 ### Analisis solusi
-Solusi yang saya buat adalah dengan melakukan paralelisasi pada bagian operasi perbandingan. Dengan menggunakan 2 thread, saya mendapatkan peningkatan kecepatan sebesar ~1.5-1.9x lipat jika dibandingkan dengan serial. Pada iterasi ke k ``(k=1,2,3...N)``, setiap thread akan melakukan operasi perbandingan setidaknya ~``k*(n/2)/t`` perbandingan (t = jumlah thread).
+Solusi yang saya buat adalah dengan melakukan paralelisasi pada bagian operasi perbandingan. Dengan menggunakan 2 thread, saya mendapatkan peningkatan kecepatan sebesar ~1.5-1.9x lipat jika dibandingkan dengan serial.
 
 Pada dasarnya bitonic sort hanya bisa melakukan sorting elemen yang berjumlah 2 pangkat. Oleh karena itu, untuk menghandle elemen yang tidak berjumlah 2 pangkat, saya membuat elemen dummy, yaitu elemen maximum pada ``N`` buah elemen, kemudian menambahkan isi sequence dengan ``dummyN-N`` buah elemen. ``dummyN`` merupakan bilangan 2 pangkat terdekat setelah ``N``.
 
