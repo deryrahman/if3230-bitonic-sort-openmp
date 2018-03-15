@@ -12,8 +12,8 @@ Tugas OpenMP - Bitonic Sort. Praktikum1_K01_13515097
     ```sh
     $ ./bitonic_sort <n> <p>
     ```
-    - <n> : problem size / banyaknya elemen random
-    - <p> : thread number (optional) (default : ``omp_get_max_threads``)
+    - n : problem size / banyaknya elemen random
+    - p : thread number (optional) (default : ``omp_get_max_threads``)
 
 ## Pembagian tugas
 
