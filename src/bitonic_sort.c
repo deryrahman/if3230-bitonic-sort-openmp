@@ -8,16 +8,17 @@ struct timeval st, et;
 void swap(int*, int, int);
 void rng(int*, int, int*);
 void buildDummy(int*, int, int, int);
-void impBitonicSort(int*, int, int);
+void impBitonicSortPar(int*, int, int);
+void impBitonicSortSer(int*, int);
 int getPowTwo(int);
-void executeTest(int*, int);
-void execute(int*, int, int);
 void writeToFile(int*, int, char*);
 
+int thr;
 int main(int argc, char **argv) {
-  int n, dummyN, threads, test, maxX;
+  int n, dummy_n, threads, test, max_x;
   int* arr;
-
+  int* arr2;
+  thr = omp_get_max_threads();
   // get maximum effective threads
   threads = omp_get_max_threads();
 
@@ -32,33 +33,51 @@ int main(int argc, char **argv) {
   }
   // true for test with 1,2,4,8,...,256 threads number
   test = threads<=0;
+  if(test){
+    printf("test\n");
+  }
 
   // get problem size;
   n = atoi(argv[1]);
-  // get dummyN from nearest power of two
-  dummyN = getPowTwo(n);
+  // get dummy_n from nearest power of two
+  dummy_n = getPowTwo(n);
 
   // prepare random numbers
-  arr = (int*) malloc(dummyN*sizeof(int));
+  arr = (int*) malloc(dummy_n*sizeof(int));
   if(!arr){
     printf("Unable to allocate memory\n");
     exit(1);
   }
-  rng(arr,n,&maxX);
-  buildDummy(arr,n,dummyN,maxX);
+  rng(arr,n,&max_x);
+  buildDummy(arr,n,dummy_n,max_x);
+
+  // copy
+  arr2 = (int*) malloc(dummy_n*sizeof(int));
+  memcpy(arr2,arr,dummy_n*sizeof(int));
 
   // write random numbers to input file
   writeToFile(arr,n,"./data/input");
 
-  if(test){
-    executeTest(arr,dummyN);
-  } else {
-    execute(arr,dummyN,threads);
-  }
+  // execute serial
+  gettimeofday(&st,NULL);
+  impBitonicSortSer(arr,dummy_n);
+  gettimeofday(&et,NULL);
+  int elapsed_serial = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
+  printf("Execution serial time: %d micro sec\n",elapsed_serial);
 
-  // write sorted numbers to output file
+  // execute paralel
+  gettimeofday(&st,NULL);
+  impBitonicSortPar(arr2,dummy_n,threads);
+  gettimeofday(&et,NULL);
+  int elapsed_paralel = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
+  printf("Execution paralel time: %d micro sec\n",elapsed_paralel);
+
+  // calculate speedup
+  printf("Speedup : %.3f\n",(float)elapsed_serial/elapsed_paralel);
+
   writeToFile(arr,n,"./data/output");
   free(arr);
+  free(arr2);
   return 0;
 }
 
@@ -70,47 +89,18 @@ void writeToFile(int* arr, int n, char* path){
   fclose(f);
 }
 
-void execute(int* arr, int dummyN, int threads){
-  gettimeofday(&st,NULL);
-  impBitonicSort(arr,dummyN,threads);
-  gettimeofday(&et,NULL);
-  int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
-  printf("Execution time: %d micro sec\n",elapsed);
-}
-
-void executeTest(int* arr, int dummyN){
-  int* tmp;
-  tmp = (int*)malloc(dummyN*sizeof(int));
-  if(!tmp){
-    printf("Unable to allocate memory\n");
-    exit(1);
-  }
-  for(int t=1; t<=256; t<<=1){
-    memcpy(tmp,arr,dummyN*sizeof(int));
-    printf("With thread %d\n", t);
-    gettimeofday(&st,NULL);
-    impBitonicSort(tmp,dummyN,t);
-    gettimeofday(&et,NULL);
-
-    int elapsed = ((et.tv_sec - st.tv_sec) * 1000000) + (et.tv_usec - st.tv_usec);
-    printf("Execution time: %d micro sec\n",elapsed);
-  }
-  memcpy(arr,tmp,dummyN*sizeof(int));
-  free(tmp);
-}
-
-void rng(int* arr, int n, int* maxX) {
+void rng(int* arr, int n, int* max_x) {
   int seed = 13515097;
   srand(seed);
   for(long i = 0; i < n; i++) {
     arr[i] = (int)rand();
-    *maxX = ((i==0 || *maxX<arr[i])?arr[i]:*maxX);
+    *max_x = ((i==0 || *max_x<arr[i])?arr[i]:*max_x);
   }
 }
 
-void buildDummy(int* arr,int N,int dummyN, int maxX){
-  for(long i = N; i < dummyN; i++) {
-    arr[i]=maxX;
+void buildDummy(int* arr,int N,int dummy_n, int max_x){
+  for(long i = N; i < dummy_n; i++) {
+    arr[i]=max_x;
   }
 }
 
@@ -121,14 +111,18 @@ void swap(int* a, int i, int j) {
   a[j] = t;
 }
 
-void impBitonicSort(int* a, int N, int threads) {
+/*
+Imperative paralel bitonic sort
+*/
+void impBitonicSortPar(int* a, int n, int threads) {
   int i,j,k;
+  int dummy_n = getPowTwo(n);
 
-  for (k=2; k<=N; k=2*k) {
+  for (k=2; k<=dummy_n; k=2*k) {
     for (j=k>>1; j>0; j=j>>1) {
       // bitonic increasing
-      #pragma omp parallel for num_threads(threads) private(i) shared(N,j,k)
-      for (i=0; i<N; i++) {
+      #pragma omp parallel for num_threads(threads) private(i) shared(n,j,k)
+      for (i=0; i<n; i++) {
         int ij=i^j;
         if ((ij)>i) {
           // monotonic increasing
@@ -140,6 +134,30 @@ void impBitonicSort(int* a, int N, int threads) {
     }
   }
 }
+
+/*
+Imperative serial bitonic sort
+*/
+void impBitonicSortSer(int* a, int n) {
+  int i,j,k;
+  int dummy_n = getPowTwo(n);
+
+  for (k=2; k<=dummy_n; k=2*k) {
+    for (j=k>>1; j>0; j=j>>1) {
+      // bitonic increasing
+      for (i=0; i<n; i++) {
+        int ij=i^j;
+        if ((ij)>i) {
+          // monotonic increasing
+          if ((i&k)==0 && a[i] > a[ij]) swap(a,i,ij);
+          // monotonic decreasing
+          if ((i&k)!=0 && a[i] < a[ij]) swap(a,i,ij);
+        }
+      }
+    }
+  }
+}
+
 
 int getPowTwo(int n){
   int d=1;
